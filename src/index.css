@@ -1,3 +1,7 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+/* Prueba de diagnóstico */
+body {
+  background-color: red !important;
+}
