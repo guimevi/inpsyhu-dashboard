@@ -45,21 +45,21 @@ import {
 // ============================================================================
 // --- 1. CONFIGURACIÓN DE FIREBASE ---
 // ============================================================================
-const firebaseConfig = typeof __firebase_config !== 'undefined' 
-  ? JSON.parse(__firebase_config) 
-  : {
+const firebaseConfig = {
   apiKey: "AIzaSyBZMohe0LZ7Q27k_GvIbFgXVNbpbExsDYM",
   authDomain: "sistemaclinico-3c268.firebaseapp.com",
   projectId: "sistemaclinico-3c268",
   storageBucket: "sistemaclinico-3c268.firebasestorage.app",
   messagingSenderId: "348864687562",
   appId: "1:348864687562:web:f6b5217d1fccffaee87333",
-    };
+};
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'hospital-main';
+
+// Nombre fijo para tu base de datos
+const appId = 'inpsyhu-hospital';
 
 // ============================================================================
 
