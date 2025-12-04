@@ -58,7 +58,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// CORRECCIÓN: Definimos el ID directamente como texto, sin buscar variables externas
+// ID fijo para tu base de datos
 const appId = 'hospital-main';
 
 // ============================================================================
@@ -76,7 +76,6 @@ export default function PsychDashboard() {
   // --- Estados de Login ---
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  // Eliminamos isRegistering porque ya no permitiremos registro público
   const [authError, setAuthError] = useState('');
 
   // --- Modales y UI ---
@@ -138,14 +137,12 @@ export default function PsychDashboard() {
     }
 
     setLoadingData(true);
-    // Asegúrate de que el nombre de la colección sea el correcto (ej. 'psych_patients_v8')
     const patientsRef = collection(db, 'artifacts', appId, 'public', 'data', 'psych_patients_v8'); 
     
     const unsubscribe = onSnapshot(patientsRef, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       data.sort((a, b) => {
          const priority = { alta_voluntaria: 3, prealta: 2, ingreso: 1, traslado: 1, alta: 0, espera: 0 };
-         // Evitamos error si status es undefined
          const statusA = a.status || 'ingreso';
          const statusB = b.status || 'ingreso';
          const diff = (priority[statusB] || 0) - (priority[statusA] || 0);
@@ -319,6 +316,12 @@ export default function PsychDashboard() {
       default: return 'bg-white border border-slate-200 shadow-sm';
     }
   };
+
+  // =======================================================
+  // CÁLCULOS DE OCUPACIÓN (¡ESTO SOLUCIONA EL ERROR!)
+  // =======================================================
+  const occupancy = getWardPatients(activeTab).length;
+  const maxCapacity = CAPACITIES[activeTab] || 0;
 
   // --- RENDERIZADO ---
 
@@ -503,11 +506,11 @@ export default function PsychDashboard() {
                     <span className="font-bold text-slate-800">Ocupación:</span>
                     <div className="w-32 h-2.5 bg-slate-100 rounded-full overflow-hidden">
                        <div 
-                          className={`h-full rounded-full transition-all duration-500 ${patients.length >= 23 ? 'bg-red-500' : 'bg-emerald-500'}`} 
-                          style={{ width: `${(getWardPatients(activeTab).length / (activeTab === 'agudos' ? 11 : 12))*100}%` }}
+                          className={`h-full rounded-full transition-all duration-500 ${occupancy >= maxCapacity ? 'bg-red-500' : 'bg-emerald-500'}`} 
+                          style={{ width: `${(occupancy / maxCapacity)*100}%` }}
                        />
                     </div>
-                    <span>{getWardPatients(activeTab).length} de {activeTab === 'agudos' ? 11 : 12} espacios ocupados</span>
+                    <span>{occupancy} de {maxCapacity} espacios ocupados</span>
                  </div>
                  {occupancy < maxCapacity ? (
                     <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded">
