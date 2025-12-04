@@ -57,7 +57,9 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'hospital-main';
+
+// CORRECCIÓN: Definimos el ID directamente como texto, sin buscar variables externas
+const appId = 'hospital-main';
 
 // ============================================================================
 
@@ -507,6 +509,15 @@ export default function PsychDashboard() {
                     </div>
                     <span>{getWardPatients(activeTab).length} de {activeTab === 'agudos' ? 11 : 12} espacios ocupados</span>
                  </div>
+                 {occupancy < maxCapacity ? (
+                    <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded">
+                       {maxCapacity - occupancy} espacios disponibles
+                    </span>
+                 ) : (
+                    <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-1 rounded">
+                       SALA LLENA
+                    </span>
+                 )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
