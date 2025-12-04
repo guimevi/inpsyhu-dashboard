@@ -2,8 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { initializeApp } from 'firebase/app';
 import { 
   getAuth, 
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword, // Solo importamos Iniciar Sesión
   signOut,
   onAuthStateChanged
 } from 'firebase/auth';
@@ -45,6 +44,7 @@ import {
 // ============================================================================
 // --- 1. CONFIGURACIÓN DE FIREBASE ---
 // ============================================================================
+// ¡IMPORTANTE! Asegúrate de que aquí estén tus credenciales REALES
 const firebaseConfig = {
   apiKey: "AIzaSyBZMohe0LZ7Q27k_GvIbFgXVNbpbExsDYM",
   authDomain: "sistemaclinico-3c268.firebaseapp.com",
@@ -57,9 +57,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-
-// Nombre fijo para tu base de datos
-const appId = 'inpsyhu-hospital';
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'hospital-main';
 
 // ============================================================================
 
@@ -76,7 +74,7 @@ export default function PsychDashboard() {
   // --- Estados de Login ---
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isRegistering, setIsRegistering] = useState(false);
+  // Eliminamos isRegistering porque ya no permitiremos registro público
   const [authError, setAuthError] = useState('');
 
   // --- Modales y UI ---
@@ -138,13 +136,17 @@ export default function PsychDashboard() {
     }
 
     setLoadingData(true);
+    // Asegúrate de que el nombre de la colección sea el correcto (ej. 'psych_patients_v8')
     const patientsRef = collection(db, 'artifacts', appId, 'public', 'data', 'psych_patients_v8'); 
     
     const unsubscribe = onSnapshot(patientsRef, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       data.sort((a, b) => {
          const priority = { alta_voluntaria: 3, prealta: 2, ingreso: 1, traslado: 1, alta: 0, espera: 0 };
-         const diff = (priority[b.status] || 0) - (priority[a.status] || 0);
+         // Evitamos error si status es undefined
+         const statusA = a.status || 'ingreso';
+         const statusB = b.status || 'ingreso';
+         const diff = (priority[statusB] || 0) - (priority[statusA] || 0);
          if (diff !== 0) return diff;
          return (b.admissionDate?.seconds || 0) - (a.admissionDate?.seconds || 0);
       });
@@ -154,24 +156,19 @@ export default function PsychDashboard() {
     return () => unsubscribe();
   }, [user]);
 
-  // --- Funciones de Autenticación ---
+  // --- Funciones de Autenticación (SOLO LOGIN) ---
 
-  const handleAuth = async (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setAuthError('');
     try {
-      if (isRegistering) {
-        await createUserWithEmailAndPassword(auth, email, password);
-      } else {
-        await signInWithEmailAndPassword(auth, email, password);
-      }
+      await signInWithEmailAndPassword(auth, email, password);
     } catch (error) {
       console.error(error);
-      let msg = "Error de autenticación.";
+      let msg = "Acceso denegado.";
       if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') msg = "Credenciales incorrectas.";
-      if (error.code === 'auth/user-not-found') msg = "Usuario no encontrado.";
-      if (error.code === 'auth/email-already-in-use') msg = "Correo ya registrado.";
-      if (error.code === 'auth/weak-password') msg = "Contraseña muy débil.";
+      if (error.code === 'auth/user-not-found') msg = "Usuario no autorizado o no existe.";
+      if (error.code === 'auth/too-many-requests') msg = "Demasiados intentos fallidos. Espere unos minutos.";
       setAuthError(msg);
     }
   };
@@ -331,7 +328,7 @@ export default function PsychDashboard() {
     );
   }
 
-  // >>> PANTALLA DE LOGIN <<<
+  // >>> PANTALLA DE LOGIN (Sin opción de registro) <<<
   if (!user) {
     return (
       <div className="min-h-screen w-full flex items-center justify-center bg-slate-100 p-4">
@@ -341,23 +338,24 @@ export default function PsychDashboard() {
               <Activity className="h-10 w-10 text-white" />
             </div>
             <h1 className="text-3xl font-bold text-white mb-1">InPsyHU</h1>
+            <p className="text-emerald-100/80 text-sm font-medium">ACCESO RESTRINGIDO</p>
           </div>
           
           <div className="p-8">
             <h2 className="text-xl font-bold text-slate-800 mb-6 text-center">
-              {isRegistering ? 'Crear Cuenta' : 'Acceso Autorizado'}
+              Iniciar Sesión
             </h2>
             
-            <form onSubmit={handleAuth} className="space-y-4">
+            <form onSubmit={handleLogin} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Correo Electrónico</label>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Correo Institucional</label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                   <input 
                     type="email" 
                     required
                     className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
-                    placeholder="usuario@hospital.com"
+                    placeholder="usuario@inpsyhu.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
@@ -380,7 +378,7 @@ export default function PsychDashboard() {
               </div>
 
               {authError && (
-                <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg flex items-center gap-2">
+                <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg flex items-center gap-2 animate-in fade-in slide-in-from-top-1">
                   <AlertOctagon size={16} />
                   {authError}
                 </div>
@@ -388,20 +386,17 @@ export default function PsychDashboard() {
 
               <button 
                 type="submit"
-                className="w-full bg-slate-900 text-white py-2.5 rounded-lg font-bold hover:bg-slate-800 transition-colors flex items-center justify-center gap-2"
+                className="w-full bg-slate-900 text-white py-2.5 rounded-lg font-bold hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-slate-900/20"
               >
-                {isRegistering ? 'Registrarse' : 'Entrar'}
-                {!isRegistering && <LogIn size={18} />}
+                Entrar al Sistema
+                <LogIn size={18} />
               </button>
             </form>
 
             <div className="mt-6 text-center">
-              <button 
-                onClick={() => { setIsRegistering(!isRegistering); setAuthError(''); }}
-                className="text-sm text-emerald-600 hover:text-emerald-800 font-medium hover:underline"
-              >
-                {isRegistering ? 'Volver a inicio de sesión' : 'Registrar nuevo usuario'}
-              </button>
+              <p className="text-xs text-slate-400">
+                ¿No tienes cuenta? Contacta al Administrador de Sistemas.
+              </p>
             </div>
           </div>
         </div>
@@ -409,7 +404,7 @@ export default function PsychDashboard() {
     );
   }
 
-  // >>> DASHBOARD <<<
+  // >>> DASHBOARD (Igual que antes) <<<
   return (
     <div className="min-h-screen bg-slate-100 font-sans text-slate-900 pb-12 relative">
       
